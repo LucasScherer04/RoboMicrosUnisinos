@@ -10,9 +10,7 @@ enum DIRECAO  : uint8_t { NENHUMA=0, ESQUERDA=1, DIREITA=2 };
 //------------------------------ Definição da Velocidade (0-255) ---------------------------------
 #define VEL_ESQUERDA_BASE 200    
 #define VEL_DIREITA_BASE 180
-#define VEL_CURVA_ESQ 100
-#define VEL_CURVA_DIR 100
-#define CURVA_MS 400 //duração da curva de 90° em ms
+#define VEL_CORRECAO 15O
 
 //------------------------------ Definição de Pinos ----------------------------------------------
 #define LED_DEBUG 13
@@ -39,6 +37,8 @@ int SENSOR_DIREITO = 0;
 const uint8_t COR_BRANCA = 0;
 const uint8_t COR_PRETA  = 1;
 
+// temporização não-bloqueante de curva
+unsigned long tInicioCurva = 0;
 
 //----------------------------------- SETUP -----------------------------------------------------
 void setup()
@@ -67,6 +67,7 @@ void loop()
   {
     case SEGUIR_LINHA:
       seguidor_de_linha();
+      // O estado pode mudar aqui se o contador_linha (interrupt) for acionado
       break;
 
     case CURVA:
@@ -113,20 +114,20 @@ void andar_tras()
   analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
 }
 
-void curvar_esquerda() {
+void curvar_esquerda_suave() {
   // curva fechada: gira no eixo (E trás, D frente)
 
   // Esquerdo
   digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
   digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
+  analogWrite(PWM_MOTOR_ESQUERDO, VEL_CORRECAO);
   // Direito
   digitalWrite(MOTOR_DIREITO_IN_0, LOW);
   digitalWrite(MOTOR_DIREITO_IN_1, HIGH);
   analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
 }
 
-void curvar_direita() {
+void curvar_direita_suave() {
   // curva fechada: gira no eixo (E frente, D trás)
 
   // Esquerdo
@@ -136,7 +137,7 @@ void curvar_direita() {
   // Direito
   digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
   digitalWrite(MOTOR_DIREITO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
+  analogWrite(PWM_MOTOR_DIREITO, VEL_CORRECAO);
 }
 
 void parar()
@@ -164,34 +165,63 @@ void seguidor_de_linha()
   lerSensoresLinha();
   if (SENSOR_ESQUERDO == COR_PRETA && SENSOR_DIREITO == COR_BRANCA) {
     // linha à esquerda → autocorreção à esquerda (curva suave)
-    estado = CURVA;
-    direcao = ESQUERDA;
+    // Mantenha em SEGUIR_LINHA, mas force o motor
+    curvar_esquerda_suave(); // Chamada para função de correção suave
   }
   
   else if (SENSOR_ESQUERDO == COR_BRANCA && SENSOR_DIREITO == COR_PRETA) {
     // linha à direita → autocorreção à direita (curva suave)
-    estado = CURVA;
-    direcao = DIREITA;
+    // Mantenha em SEGUIR_LINHA, mas force o motor
+    curvar_direita_suave(); // Chamada para função de correção suave
   } 
   
   else if (SENSOR_ESQUERDO == COR_PRETA && SENSOR_DIREITO == COR_PRETA) {
     // cruzamento / faixa cheia → avança simétrico
-    AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    andar_frente();
 
   } else {
     // ambos em branco → segue reto
-    andar_reto();
+    andar_frente();
   }
   
 }
 
-void realizar_a_curva()
+//---------------------- CURVAS ------------------------------------------------------------------
+void curvar_esquerda()
 {
-  //Fazer a curva
+  //Motor Esquerdo para trás, Motor Direito para frente
+  // Esquerdo
+  digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
+  digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
+  analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE); // Usa a velocidade base
+  // Direito
+  digitalWrite(MOTOR_DIREITO_IN_0, LOW);
+  digitalWrite(MOTOR_DIREITO_IN_1, HIGH);
+  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE); // Usa a velocidade base
+
+  // Lógica de saída: Gira até detectar a linha novamente
+  // É importante ler os sensores AQUI. Se o carro já estiver sobre a linha do cruzamento,
+  // os sensores podem estar pretos, o que seria o critério de saída imediata.
+  lerSensoresLinha(); 
+  
+  // Condição de saída: Continua girando ENQUANTO AMBOS os sensores estiverem fora da linha.
+  // Se qualquer sensor (ou ambos) detectarem a cor PRETA, a curva termina.
+  // Isso pressupõe que a curva é para achar uma linha preta.
+  while(SENSOR_ESQUERDO == COR_BRANCA && SENSOR_DIREITO == COR_BRANCA) {
+    lerSensoresLinha(); // Continua lendo os sensores enquanto gira
+    // Não precisa de delay, pois o loop é executado muito rápido e o giro está ativo.
+  }
+  
+  // Quando sair do loop (achou a linha), para o carrinho e volta ao estado SEGUIR_LINHA
+  parar();
+  estado = SEGUIR_LINHA;
+  direcao = NENHUMA;
+}
   estado = SEGUIR_LINHA;
 }
 
 
+//----------------------------- INTERRUPÇÕES ----------------------------------------------------
 void contador_linha()
 {
   iCount++;
