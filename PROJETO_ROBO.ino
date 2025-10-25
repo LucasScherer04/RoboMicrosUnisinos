@@ -35,6 +35,9 @@ const uint8_t COR_PRETA = 1;
 
 unsigned long tInicioCurva = 0;
 
+volatile unsigned long ultimoTempoDebounce = 0;
+const unsigned long tempoDebounce = 100;
+
 void setup()
 {
   pinMode(LED_DEBUG, OUTPUT);
@@ -49,7 +52,7 @@ void setup()
   pinMode(MOTOR_ESQUERDO_IN_0, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_1, OUTPUT);
 
-  // attachInterrupt(digitalPinToInterrupt(IR_CONTADOR_LINHA), contador_linha, RISING);
+  attachInterrupt(digitalPinToInterrupt(IR_CONTADOR_LINHA), contador_linha, FALLING);
 }
 
 void andar_frente() 
@@ -150,11 +153,15 @@ void curvar_esquerda()
 
 void contador_linha()
 {
-  iCount++;
+  if ((millis() - ultimoTempoDebounce) > tempoDebounce){
+    ultimoTempoDebounce = millis();
 
-  if(iCount == 3){
-    estado = PARADA;
-    iCount = 0; 
+    iCount++;
+
+    if(iCount == 3){
+      estado = PARADA;
+      iCount = 0; 
+    }
   }
 }
 
