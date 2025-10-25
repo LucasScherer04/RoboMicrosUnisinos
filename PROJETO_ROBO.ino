@@ -8,7 +8,7 @@ enum DIRECAO: uint8_t { NENHUMA=0, ESQUERDA=1, DIREITA=2 };
 
 #define VEL_ESQUERDA_BASE 200
 #define VEL_DIREITA_BASE 180
-#define VEL_CORRECAO 150
+#define VEL_CORRECAO 20
 
 #define LED_DEBUG 13
 #define IR_CONTADOR_LINHA 3
@@ -48,29 +48,8 @@ void setup()
   pinMode(MOTOR_DIREITO_IN_1, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_0, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_1, OUTPUT);
-}
 
-void loop()
-{
-  switch(estado)
-  {
-    case SEGUIR_LINHA:
-      seguidor_de_linha();
-      break;
-
-    case CURVA:
-      if (direcao == ESQUERDA) {
-        curvar_esquerda();
-      }
-      else if (direcao == DIREITA) {
-        curvar_esquerda();
-      }
-      break;
-
-    case PARADA:
-      parar();
-      break;
-  }
+  // attachInterrupt(digitalPinToInterrupt(IR_CONTADOR_LINHA), contador_linha, RISING);
 }
 
 void andar_frente() 
@@ -86,8 +65,8 @@ void andar_frente()
 
 void andar_tras() 
 {
-  digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
-  digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
+  digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
+  digitalWrite(MOTOR_ESQUERDO_IN_1, HIGH);
   analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
 
   digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
@@ -99,7 +78,7 @@ void curvar_esquerda_suave() {
  
   digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
   digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_ESQUERDO, VEL_CORRECAO);
+  analogWrite(PWM_MOTOR_ESQUERDO, (VEL_ESQUERDA_BASE - VEL_CORRECAO));
 
   digitalWrite(MOTOR_DIREITO_IN_0, LOW);
   digitalWrite(MOTOR_DIREITO_IN_1, HIGH);
@@ -114,7 +93,7 @@ void curvar_direita_suave() {
 
   digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
   digitalWrite(MOTOR_DIREITO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_DIREITO, VEL_CORRECAO);
+  analogWrite(PWM_MOTOR_DIREITO, (VEL_DIREITA_BASE - VEL_CORRECAO));
 }
 
 void parar()
@@ -143,9 +122,7 @@ void seguidor_de_linha()
   else if (SENSOR_ESQUERDO == COR_BRANCA && SENSOR_DIREITO == COR_PRETA) {
     curvar_direita_suave(); 
   } 
-  else if (SENSOR_ESQUERDO == COR_PRETA && SENSOR_DIREITO == COR_PRETA) {
-    andar_frente();
-  } else {
+  else {
     andar_frente();
   }
 }
@@ -176,7 +153,7 @@ void contador_linha()
   iCount++;
 
   if(iCount == 3){
-    estado = CURVA;
+    estado = PARADA;
     iCount = 0; 
   }
 }
@@ -186,7 +163,30 @@ void obstaculo()
   isObstaculo =! isObstaculo;
 
   if(isObstaculo)
-  estado = PARADA;
+    estado = PARADA;
   else
-  estado = SEGUIR_LINHA;
+    estado = SEGUIR_LINHA;
+}
+
+void loop()
+{
+  switch(estado)
+  {
+    case SEGUIR_LINHA:
+      seguidor_de_linha();
+      break;
+
+    case CURVA:
+      if (direcao == ESQUERDA) {
+        curvar_esquerda();
+      }
+      else if (direcao == DIREITA) {
+        curvar_esquerda();
+      }
+      break;
+
+    case PARADA:
+      parar();
+      break;
+  }
 }
