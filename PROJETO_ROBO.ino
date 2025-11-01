@@ -6,9 +6,8 @@ PROJETO GRAU B - CARRINHO*/
 enum ESTADO: uint8_t { SEGUIR_LINHA=0, CURVA=1, PARADA=2 };
 enum DIRECAO: uint8_t { NENHUMA=0, ESQUERDA=1, DIREITA=2 };
 
-#define VEL_ESQUERDA_BASE 200
-#define VEL_DIREITA_BASE 180
-#define VEL_CORRECAO 20
+#define VEL_ESQUERDA_BASE 255
+#define VEL_DIREITA_BASE 255
 
 #define LED_DEBUG 13
 #define IR_CONTADOR_LINHA 3
@@ -29,11 +28,11 @@ int iCount = 0;
 int isObstaculo = 0; 
 int SENSOR_ESQUERDO = 0;
 int SENSOR_DIREITO = 0;
+int SENSOR_CONTA_LINHA =0;
+int x = 0;
 
 const uint8_t COR_BRANCA = 0;
 const uint8_t COR_PRETA = 1;
-
-unsigned long tInicioCurva = 0;
 
 volatile unsigned long ultimoTempoDebounce = 0;
 const unsigned long tempoDebounce = 100;
@@ -68,8 +67,8 @@ void andar_frente()
 
 void andar_tras() 
 {
-  digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
-  digitalWrite(MOTOR_ESQUERDO_IN_1, HIGH);
+  digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
+  digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
   analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
 
   digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
@@ -81,7 +80,7 @@ void curvar_esquerda_suave() {
  
   digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
   digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_ESQUERDO, (VEL_ESQUERDA_BASE - VEL_CORRECAO));
+  analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
 
   digitalWrite(MOTOR_DIREITO_IN_0, LOW);
   digitalWrite(MOTOR_DIREITO_IN_1, HIGH);
@@ -96,24 +95,26 @@ void curvar_direita_suave() {
 
   digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
   digitalWrite(MOTOR_DIREITO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_DIREITO, (VEL_DIREITA_BASE - VEL_CORRECAO));
+  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
 }
 
 void parar()
 {
   analogWrite(PWM_MOTOR_DIREITO, 0);
   analogWrite(PWM_MOTOR_ESQUERDO, 0); 
-
+  
   digitalWrite(MOTOR_DIREITO_IN_0, LOW);
   digitalWrite(MOTOR_DIREITO_IN_1, LOW);
   digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
   digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-}
 
+  delay(200);
+}
 
 void lerSensoresLinha(void) {
   SENSOR_ESQUERDO = digitalRead(IR_SEGUIDOR_ESQUERDO);
   SENSOR_DIREITO = digitalRead(IR_SEGUIDOR_DIREITO);
+  // SENSOR_CONTA_LINHA = digitalRead(IR_CONTADOR_LINHA);
 }
 
 void seguidor_de_linha()
@@ -134,21 +135,41 @@ void curvar_esquerda()
 {
   digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
   digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
+  digitalWrite(MOTOR_DIREITO_IN_0, LOW);
+  digitalWrite(MOTOR_DIREITO_IN_1, LOW);
+  analogWrite(PWM_MOTOR_DIREITO, 0); 
   analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE); 
 
-  digitalWrite(MOTOR_DIREITO_IN_0, LOW);
-  digitalWrite(MOTOR_DIREITO_IN_1, HIGH);
-  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE); 
+  delay(800);
+  // lerSensoresLinha(); 
 
-  lerSensoresLinha(); 
-
-  while(SENSOR_ESQUERDO == COR_BRANCA && SENSOR_DIREITO == COR_BRANCA) {
-    lerSensoresLinha(); 
-  }
- 
-  parar();
+  // while(SENSOR_ESQUERDO == COR_BRANCA) {
+  //   lerSensoresLinha(); 
+  // }
   estado = SEGUIR_LINHA;
   direcao = NENHUMA;
+  iCount = 0;
+}
+
+void curvar_direita()
+{
+  digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
+  digitalWrite(MOTOR_ESQUERDO_IN_1, HIGH);
+  analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE); 
+
+  digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
+  digitalWrite(MOTOR_DIREITO_IN_1, LOW);
+  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE); 
+
+  delay(300);
+  lerSensoresLinha(); 
+
+  while(SENSOR_DIREITO == COR_BRANCA) {
+    lerSensoresLinha(); 
+  }
+  estado = SEGUIR_LINHA;
+  direcao = NENHUMA;
+  iCount = 0;
 }
 
 void contador_linha()
@@ -158,9 +179,10 @@ void contador_linha()
 
     iCount++;
 
-    if(iCount == 3){
-      estado = PARADA;
-      iCount = 0; 
+    if(iCount == 3 && x == 0){
+      x = 1;
+      estado = CURVA;
+      direcao = ESQUERDA;
     }
   }
 }
@@ -188,7 +210,7 @@ void loop()
         curvar_esquerda();
       }
       else if (direcao == DIREITA) {
-        curvar_esquerda();
+        curvar_direita();
       }
       break;
 
