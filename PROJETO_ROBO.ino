@@ -28,8 +28,9 @@ int iCount = 0;
 int isObstaculo = 0; 
 int SENSOR_ESQUERDO = 0;
 int SENSOR_DIREITO = 0;
-int SENSOR_CONTA_LINHA =0;
+int SENSOR_OBSTACULO =0;
 int x = 0;
+int y =0;
 
 const uint8_t COR_BRANCA = 0;
 const uint8_t COR_PRETA = 1;
@@ -50,12 +51,15 @@ void setup()
   pinMode(MOTOR_DIREITO_IN_1, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_0, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_1, OUTPUT);
+  Serial.begin(9600); // Inicializa a comunicação serial a 9600 bps
 
   attachInterrupt(digitalPinToInterrupt(IR_CONTADOR_LINHA), contador_linha, FALLING);
+  attachInterrupt(digitalPinToInterrupt(IR_OBSTACULO), obstaculo, CHANGE);
 }
 
 void andar_frente() 
 {
+  y = 0;
   digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
   digitalWrite(MOTOR_ESQUERDO_IN_1, HIGH);
   analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
@@ -65,15 +69,26 @@ void andar_frente()
   analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
 }
 
-void andar_tras() 
+void parar() 
 {
-  digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
-  digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
+  if(y == 0){
+    digitalWrite(MOTOR_ESQUERDO_IN_0, HIGH);
+    digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
+    analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE);
 
-  digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
-  digitalWrite(MOTOR_DIREITO_IN_1, LOW);
-  analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
+    digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
+    digitalWrite(MOTOR_DIREITO_IN_1, LOW);
+    analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
+    delay(30);
+    y = 1;
+    analogWrite(PWM_MOTOR_DIREITO, 0);
+    analogWrite(PWM_MOTOR_ESQUERDO, 0); 
+    
+    digitalWrite(MOTOR_DIREITO_IN_0, LOW);
+    digitalWrite(MOTOR_DIREITO_IN_1, LOW);
+    digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
+    digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
+  }
 }
 
 void curvar_esquerda_suave() {
@@ -98,23 +113,9 @@ void curvar_direita_suave() {
   analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
 }
 
-void parar()
-{
-  analogWrite(PWM_MOTOR_DIREITO, 0);
-  analogWrite(PWM_MOTOR_ESQUERDO, 0); 
-  
-  digitalWrite(MOTOR_DIREITO_IN_0, LOW);
-  digitalWrite(MOTOR_DIREITO_IN_1, LOW);
-  digitalWrite(MOTOR_ESQUERDO_IN_0, LOW);
-  digitalWrite(MOTOR_ESQUERDO_IN_1, LOW);
-
-  delay(200);
-}
-
 void lerSensoresLinha(void) {
   SENSOR_ESQUERDO = digitalRead(IR_SEGUIDOR_ESQUERDO);
   SENSOR_DIREITO = digitalRead(IR_SEGUIDOR_DIREITO);
-  // SENSOR_CONTA_LINHA = digitalRead(IR_CONTADOR_LINHA);
 }
 
 void seguidor_de_linha()
@@ -189,12 +190,16 @@ void contador_linha()
 
 void obstaculo()
 {
-  isObstaculo =! isObstaculo;
-
-  if(isObstaculo)
-    estado = PARADA;
-  else
-    estado = SEGUIR_LINHA;
+  // if(isObstaculo){
+  //   isObstaculo = 0;
+  // } else {
+  //   isObstaculo = 1;
+  // }
+  Serial.println("entrei");
+  // if(isObstaculo)
+  //   estado = PARADA;
+  // else
+  //   estado = SEGUIR_LINHA;
 }
 
 void loop()
