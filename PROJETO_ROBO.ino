@@ -36,7 +36,7 @@ const uint8_t COR_BRANCA = 0;
 const uint8_t COR_PRETA = 1;
 
 volatile unsigned long ultimoTempoDebounce = 0;
-const unsigned long tempoDebounce = 100;
+const unsigned long tempoDebounce = 100;;
 
 void setup()
 {
@@ -51,7 +51,6 @@ void setup()
   pinMode(MOTOR_DIREITO_IN_1, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_0, OUTPUT);
   pinMode(MOTOR_ESQUERDO_IN_1, OUTPUT);
-  Serial.begin(9600); // Inicializa a comunicação serial a 9600 bps
 
   attachInterrupt(digitalPinToInterrupt(IR_CONTADOR_LINHA), contador_linha, FALLING);
   attachInterrupt(digitalPinToInterrupt(IR_OBSTACULO), obstaculo, CHANGE);
@@ -79,7 +78,7 @@ void parar()
     digitalWrite(MOTOR_DIREITO_IN_0, HIGH);
     digitalWrite(MOTOR_DIREITO_IN_1, LOW);
     analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE);
-    delay(30);
+    delay(20);
     y = 1;
     analogWrite(PWM_MOTOR_DIREITO, 0);
     analogWrite(PWM_MOTOR_ESQUERDO, 0); 
@@ -141,12 +140,7 @@ void curvar_esquerda()
   analogWrite(PWM_MOTOR_DIREITO, 0); 
   analogWrite(PWM_MOTOR_ESQUERDO, VEL_ESQUERDA_BASE); 
 
-  delay(800);
-  // lerSensoresLinha(); 
-
-  // while(SENSOR_ESQUERDO == COR_BRANCA) {
-  //   lerSensoresLinha(); 
-  // }
+  delay(850);
   estado = SEGUIR_LINHA;
   direcao = NENHUMA;
   iCount = 0;
@@ -162,7 +156,7 @@ void curvar_direita()
   digitalWrite(MOTOR_DIREITO_IN_1, LOW);
   analogWrite(PWM_MOTOR_DIREITO, VEL_DIREITA_BASE); 
 
-  delay(300);
+  delay(850);
   lerSensoresLinha(); 
 
   while(SENSOR_DIREITO == COR_BRANCA) {
@@ -190,16 +184,15 @@ void contador_linha()
 
 void obstaculo()
 {
-  // if(isObstaculo){
-  //   isObstaculo = 0;
-  // } else {
-  //   isObstaculo = 1;
-  // }
-  Serial.println("entrei");
-  // if(isObstaculo)
-  //   estado = PARADA;
-  // else
-  //   estado = SEGUIR_LINHA;
+    if(isObstaculo){
+      isObstaculo = 0;
+    } else {
+      isObstaculo = 1;
+    }
+    if(isObstaculo)
+      estado = PARADA;
+    else
+      estado = SEGUIR_LINHA;
 }
 
 void loop()
